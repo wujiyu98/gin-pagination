@@ -1,5 +1,5 @@
 # gin-pagination
-pagination with gin and gorm2
+pagination with gin and gorm2  
 使用  
 go get github.com/wujiyu98/gin-pagination 
 
