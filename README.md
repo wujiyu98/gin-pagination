@@ -1,9 +1,8 @@
 # gin-pagination
 pagination with gin and gorm2  
 使用  
-go get github.com/wujiyu98/gin-pagination 
-
-p := pagination.Init(1,10, 5,100, "/") 
+go get github.com/wujiyu98/gin-pagination  
+p := pagination.Init(1,10, 5,100, "/")  
 fmt.Println(p.GetList())  
 fmt.Println(p.BsPage())  
 
