@@ -6,12 +6,13 @@ import (
 	"gorm.io/gorm"
 	"html/template"
 	"math"
+	"regexp"
 	"strconv"
 
 )
 
 type Paginate struct {
-	Count int64 `form:"total" json:"total" `
+	Count int64 `form:"count" json:"count" `
 	Page int `form:"page" json:"page"`
 	Path string `form:"pathname" json:"pathname"`
 	CurrentPageUrt string `json:"current_page_urt"`
@@ -32,7 +33,7 @@ func Init(page int, size int, slot int, count int64, path string) *Paginate {
 	p.Size = size
 	p.Slot = slot
 	p.Count = count
-	p.Path = path
+	p.Path = fmt.Sprintf("%s?",path)
 	p.checkReq(size)
 	return &p
 }
@@ -45,7 +46,7 @@ func GinInit(ctx *gin.Context, size int, slot int, count int64) *Paginate {
 	if p.Count == 0{
 		p.Count = count
 	}
-	p.Path = ctx.FullPath()
+	p.setPath(ctx)
 	p.checkReq(size)
 
 	return &p
@@ -63,6 +64,7 @@ func GinOrmInit(ctx *gin.Context, tx *gorm.DB,scope func(tx *gorm.DB) *gorm.DB,d
 		tx.Count(&count)
 		p.Count = count
 	}
+	p.setPath(ctx)
 	p.checkReq(size)
 	offset := (p.Page-1) * p.Size
 	tx.Scopes(scope).Offset(offset).Limit(p.Size).Find(data)
@@ -70,6 +72,20 @@ func GinOrmInit(ctx *gin.Context, tx *gorm.DB,scope func(tx *gorm.DB) *gorm.DB,d
 	return &p
 }
 
+func (p *Paginate) setPath(ctx *gin.Context)  {
+	uri := ctx.Request.RequestURI
+	path := ctx.FullPath()
+	if regexp.MustCompile(`\?[\w-]+=`).MatchString(uri){
+		if regexp.MustCompile(`\?page=\d*`).MatchString(uri){
+			p.Path = fmt.Sprintf(`%s?`, path)
+		}else {
+			s := regexp.MustCompile(`&(?:page|size|count)=\d*`).ReplaceAllString(uri, "")
+			p.Path = fmt.Sprintf(`%s&`, s)
+		}
+	}else {
+		p.Path = fmt.Sprintf(`%s?`, path)
+	}
+}
 
 func (p *Paginate) checkReq(size int)  {
 	if p.Page <= 0{
@@ -86,13 +102,13 @@ func (p *Paginate) checkReq(size int)  {
 func (p *Paginate) GetList() []string {
 	var lists []string
 	p.PageCount = int(math.Ceil(float64(p.Count)/float64(p.Size)))
-	p.FirstPageUrl = fmt.Sprintf("%s?page=1&size=%d&total=%d", p.Path, p.Size, p.Count)
-	p.LastPageUrl = fmt.Sprintf("%s?page=%d&size=%d&total=%d", p.Path, p.PageCount, p.Size, p.Count)
+	p.FirstPageUrl = fmt.Sprintf("%spage=1&size=%d&count=%d", p.Path, p.Size, p.Count)
+	p.LastPageUrl = fmt.Sprintf("%spage=%d&size=%d&count=%d", p.Path, p.PageCount, p.Size, p.Count)
 	if p.Page != 1{
-		p.PrevPageUrl = fmt.Sprintf("%s?page=%d&size=%d&total=%d", p.Path, p.Page-1, p.Size, p.Count)
+		p.PrevPageUrl = fmt.Sprintf("%spage=%d&size=%d&count=%d", p.Path, p.Page-1, p.Size, p.Count)
 	}
 	if p.Page != p.PageCount{
-		p.NextPageUrl = fmt.Sprintf("%s?page=%d&size=%d&total=%d", p.Path, p.Page+1, p.Size, p.Count)
+		p.NextPageUrl = fmt.Sprintf("%spage=%d&size=%d&count=%d", p.Path, p.Page+1, p.Size, p.Count)
 	}
 	if p.PageCount <= p.Slot + 2{
 		for i := 1; i <= p.PageCount; i++ {
@@ -138,7 +154,7 @@ func (p *Paginate) BsPage() template.HTML {
 	}
 	for _, list := range lists {
 		var item, linkUrl string
-		linkUrl = fmt.Sprintf("%s?page=%s&size=%d&total=%d", p.Path, list, p.Size, p.Count)
+		linkUrl = fmt.Sprintf("%spage=%s&size=%d&count=%d", p.Path, list, p.Size, p.Count)
 
 		switch{
 		case list == "...":
@@ -171,7 +187,7 @@ func (p *Paginate) SimpleBsPage() template.HTML {
 	}else {
 		next = fmt.Sprintf(`<li class="page-item"> <a class="page-link" href="%s" aria-label="Next"> <span aria-hidden="true">&raquo;</span> </a> </li>`, p.NextPageUrl)
 	}
-	linkUrl := fmt.Sprintf("%s?page=%d&size=%d&total=%d", p.Path, p.Page, p.Size, p.Count)
+	linkUrl := fmt.Sprintf("%spage=%d&size=%d&count=%d", p.Path, p.Page, p.Size, p.Count)
 	current = fmt.Sprintf(`<li class="page-item active" aria-current="page"><a class="page-link" href="%s">%d</a></li>`,linkUrl, p.Page)
 	if p.Count != 0{
 		html = navH + prev + current + next +navF
