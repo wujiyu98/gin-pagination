@@ -73,13 +73,13 @@ func GinOrmInit(ctx *gin.Context, tx *gorm.DB,scope func(tx *gorm.DB) *gorm.DB,d
 }
 
 func (p *Paginate) setPath(ctx *gin.Context)  {
-	uri := ctx.Request.RequestURI
-	path := ctx.FullPath()
-	if regexp.MustCompile(`\?[\w-]+=`).MatchString(uri){
-		if regexp.MustCompile(`\?page=\d*`).MatchString(uri){
+	fullPath := ctx.FullPath()
+	path := ctx.Request.URL.Path
+	if regexp.MustCompile(`\?[\w-]+=`).MatchString(fullPath){
+		if regexp.MustCompile(`\?page=\d*`).MatchString(fullPath){
 			p.Path = fmt.Sprintf(`%s?`, path)
 		}else {
-			s := regexp.MustCompile(`&(?:page|size|count)=\d*`).ReplaceAllString(uri, "")
+			s := regexp.MustCompile(`&(?:page|size|count)=\d*`).ReplaceAllString(fullPath, "")
 			p.Path = fmt.Sprintf(`%s&`, s)
 		}
 	}else {
